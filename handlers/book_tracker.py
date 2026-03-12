@@ -4,7 +4,8 @@ from telegram.ext import (
     ContextTypes, CommandHandler, CallbackQueryHandler,
     ConversationHandler, MessageHandler, filters,
 )
-from database import ensure_user, log_book_pages, get_book_stats
+from database import ensure_user, log_book_pages, get_book_stats, add_score, check_and_unlock_achievements
+from data import get_book_cheer, ACHIEVEMENTS
 
 CUSTOM_PAGES = 0
 
@@ -41,9 +42,32 @@ async def book_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def book_quick_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
+    uid = q.from_user.id
     pages = int(q.data.replace("book_", ""))
-    log_book_pages(q.from_user.id, pages)
-    await q.message.reply_text(f"✅ {pages} sahifa qo'shildi! 📚")
+    log_book_pages(uid, pages)
+    pts = max(3, pages // 5)
+    add_score(uid, "book", pts, f"{pages} sahifa")
+    stats = get_book_stats(uid)
+    cheer = get_book_cheer()
+
+    text = (
+        f"✅ <b>{pages} sahifa qo'shildi!</b> +{pts} ⭐\n\n"
+        f"📖 {cheer}\n\n"
+        f"📊 Jami: {stats['total']} sahifa | Hafta: {stats['week']}p | Oy: {stats['month']}p"
+    )
+    await q.message.reply_text(text, parse_mode="HTML")
+
+    # Check achievements
+    new_badges = check_and_unlock_achievements(uid)
+    if new_badges:
+        badge_lines = []
+        for b in new_badges:
+            a = ACHIEVEMENTS.get(b, {})
+            badge_lines.append(f"{a.get('emoji','')} {a.get('title', b)}")
+        await q.message.reply_text(
+            "🏆 <b>YANGI YUTUQ OCHILDI!</b>\n\n" + "\n".join(badge_lines),
+            parse_mode="HTML",
+        )
 
 
 async def book_custom_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -59,8 +83,31 @@ async def book_custom_pages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Iltimos, 1-10000 orasida son yozing.")
         return CUSTOM_PAGES
     pages = int(text)
-    log_book_pages(update.effective_user.id, pages)
-    await update.message.reply_text(f"✅ {pages} sahifa qo'shildi! 📚")
+    uid = update.effective_user.id
+    log_book_pages(uid, pages)
+    pts = max(3, pages // 5)
+    add_score(uid, "book", pts, f"{pages} sahifa")
+    stats = get_book_stats(uid)
+    cheer = get_book_cheer()
+    await update.message.reply_text(
+        f"✅ <b>{pages} sahifa qo'shildi!</b> +{pts} ⭐\n\n"
+        f"📖 {cheer}\n\n"
+        f"📊 Jami: {stats['total']} sahifa",
+        parse_mode="HTML",
+    )
+
+    # Check achievements
+    new_badges = check_and_unlock_achievements(uid)
+    if new_badges:
+        badge_lines = []
+        for b in new_badges:
+            a = ACHIEVEMENTS.get(b, {})
+            badge_lines.append(f"{a.get('emoji','')} {a.get('title', b)}")
+        await update.message.reply_text(
+            "🏆 <b>YANGI YUTUQ OCHILDI!</b>\n\n" + "\n".join(badge_lines),
+            parse_mode="HTML",
+        )
+
     return ConversationHandler.END
 
 
@@ -78,5 +125,6 @@ def register(app):
             CUSTOM_PAGES: [MessageHandler(filters.TEXT & ~filters.COMMAND, book_custom_pages)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
+        per_message=False,
     )
     app.add_handler(conv)

@@ -79,5 +79,6 @@ def register(app):
         entry_points=[CallbackQueryHandler(kv_add_start, pattern=r"^kv_add_")],
         states={SAVING: [MessageHandler(filters.TEXT & ~filters.COMMAND, kv_add_content)]},
         fallbacks=[CommandHandler("cancel", cancel)],
+        per_message=False,
     )
     app.add_handler(conv)

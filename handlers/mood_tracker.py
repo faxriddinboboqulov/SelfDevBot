@@ -71,15 +71,31 @@ async def mood_step3_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     log_mood(uid, mood, energy, stress)
     avgs = get_mood_averages(uid, 7)
 
+    # Smart advice based on mood
+    advice = ""
+    if mood <= 2 and stress >= 4:
+        advice = "\n\n💡 <b>Maslahat:</b> Stress yuqori. 5 daqiqa chuqur nafas oling va tabiatda yuring."
+    elif energy <= 2:
+        advice = "\n\n💡 <b>Maslahat:</b> Energiya past. 10 daqiqa yengil mashq qiling yoki toza havoda yuring."
+    elif mood >= 4 and energy >= 4:
+        advice = "\n\n🚀 <b>Zo'r holat!</b> Eng qiyin vazifalarni hozir bajaring — siz tayyor!"
+    elif stress >= 4:
+        advice = "\n\n💡 <b>Maslahat:</b> Meditatsiya yoki musiqa tinglash stress kamaytirishga yordam beradi."
+
+    mood_bar = "😊" * mood + "⬜" * (5 - mood)
+    energy_bar = "⚡" * energy + "⬜" * (5 - energy)
+    stress_bar = "🔴" * stress + "⬜" * (5 - stress)
+
     text = (
         "✅ <b>Kayfiyat saqlandi!</b>\n\n"
-        f"😊 Kayfiyat: {mood}/5\n"
-        f"⚡ Energiya: {energy}/5\n"
-        f"🧘 Stress: {stress}/5\n\n"
+        f"😊 Kayfiyat: {mood_bar} {mood}/5\n"
+        f"⚡ Energiya: {energy_bar} {energy}/5\n"
+        f"🧘 Stress: {stress_bar} {stress}/5\n\n"
         f"📊 <b>7 kunlik o'rtacha:</b>\n"
         f"😊 Kayfiyat: {avgs['avg_mood']}\n"
         f"⚡ Energiya: {avgs['avg_energy']}\n"
         f"🧘 Stress: {avgs['avg_stress']}"
+        f"{advice}"
     )
     await q.message.reply_text(text, parse_mode="HTML")
 

@@ -171,6 +171,7 @@ def register(app):
         entry_points=[CallbackQueryHandler(goal_add_start, pattern=r"^goal_add$")],
         states={ADDING_GOAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, goal_add_name)]},
         fallbacks=[CommandHandler("cancel", cancel)],
+        per_message=False,
     )
     app.add_handler(conv_add)
 
@@ -178,5 +179,6 @@ def register(app):
         entry_points=[CallbackQueryHandler(goal_update_select, pattern=r"^gup_")],
         states={GOAL_PROGRESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, goal_update_amount)]},
         fallbacks=[CommandHandler("cancel", cancel)],
+        per_message=False,
     )
     app.add_handler(conv_update)

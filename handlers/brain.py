@@ -67,13 +67,25 @@ async def br_answer_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if selected == correct:
         score = max(10, 100 - int(elapsed * 5))
         add_brain_score(q.from_user.id, br_type, score)
+
+        if score >= 80:
+            reaction = "⚡ TEZKOR AQIL! Juda tez javob berdingiz!"
+        elif score >= 50:
+            reaction = "🧠 Yaxshi tezlik!"
+        else:
+            reaction = "✅ To'g'ri, lekin keyingi safar tezroq!"
+
         await q.message.reply_text(
-            f"✅ To'g'ri! ⏱ {elapsed} sek | 🏆 {score} ball"
+            f"✅ TO'G'RI JAVOB!\n\n"
+            f"{reaction}\n"
+            f"⏱ {elapsed} sek | 🏆 {score} ball",
         )
     else:
         add_brain_score(q.from_user.id, br_type, 0)
         await q.message.reply_text(
-            f"❌ Noto'g'ri. To'g'ri javob: <b>{correct}</b> | ⏱ {elapsed} sek",
+            f"❌ Noto'g'ri!\n\n"
+            f"To'g'ri javob: <b>{correct}</b> | ⏱ {elapsed} sek\n\n"
+            f"💪 Keyingi safar albatta to'g'ri javob berasiz!",
             parse_mode="HTML",
         )
 

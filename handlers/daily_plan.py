@@ -2,6 +2,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 from database import ensure_user, seed_default_daily_tasks, get_daily_tasks, toggle_task
+from data import get_celebration
 
 
 async def daily_plan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -38,6 +39,15 @@ async def _show_tasks(update, user_id):
     bar_filled = pct // 10
     bar = "🟩" * bar_filled + "⬜" * (10 - bar_filled)
     lines.append(f"\n{bar} {pct}% ({done_count}/{len(tasks)})")
+
+    if pct == 100:
+        lines.append(f"\n🎉🎉🎉 BARCHA VAZIFALAR BAJARILDI! {get_celebration()}")
+    elif pct >= 75:
+        lines.append("\n🔥 Deyarli tayyor! Oxirgi zarba!")
+    elif pct >= 50:
+        lines.append("\n💪 Yarmidan ko'p — davom eting!")
+    elif done_count > 0:
+        lines.append("\n⚡ Yaxshi boshlangach, davom eting!")
 
     text = "\n".join(lines)
     msg = update.callback_query.message if update.callback_query else update.message

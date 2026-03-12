@@ -1,5 +1,155 @@
 """📦 Statik ma'lumotlar — so'zlar, mashqlar, iqtiboslar, videolar, savollar"""
 import random
+from datetime import datetime
+import pytz
+
+TZ = pytz.timezone("Asia/Tashkent")
+
+
+# ══════════════════════════════════════════
+#  🎊 QIZIQARLI JAVOBLAR & TABRIKLAR
+# ══════════════════════════════════════════
+CELEBRATIONS = [
+    "🎉🎉🎉 AJOYIB ISH!!!",
+    "🔥🔥🔥 SIZ YONIB KETAYAPSIZ!",
+    "💪 MASHALLAH, DAVOM ETING!",
+    "🏆 CHAMPION! BUGUN ZO'R KUNNI BOSHLADINGIZ!",
+    "⚡ ENERGIYA PORTLASHI! DAVOM!",
+    "🚀 KOSMOSGA YO'L OLAYAPSIZ!",
+    "👑 QIROL/MALIKA SIZ, SHUBHASIZ!",
+    "🌟 YULDUZ BO'LIB PORLAYAPSIZ!",
+]
+
+WORKOUT_CHEERS = [
+    "💪 BEASTMODE ON! Muskullaring sevinib turubdi!",
+    "🏋️ Jismoniy mashg'ulot — eng yaxshi antidepressant!",
+    "🔥 Ter oqayaptimi? Yog' yonayapti!",
+    "⚡ Bugun tanangiz sizga rahmat aytmoqda!",
+    "🦁 Sher kabi kuchli bo'lyapsiz!",
+    "🏆 Har bir mashq — kelajakdagi siz uchun investitsiya!",
+]
+
+BOOK_CHEERS = [
+    "📖 Kitob — eng arzon sayohat!",
+    "🧠 Miyangiz yangi neyron aloqalar yaratdi!",
+    "📚 Bilim — olib ketib bo'lmaydigan boylik!",
+    "🌟 O'qigan odam — o'sgan odam!",
+    "🔮 Kelajakni ko'rishning eng yaxshi usuli — bu o'qish!",
+]
+
+WORD_CHEERS = [
+    "🌍 Polyglot bo'lish yo'lida!",
+    "🗣 Yangi so'z = yangi imkoniyat!",
+    "🧩 Til — dunyoni ochuvchi kalit!",
+    "🎯 Har bir so'z — kichik g'alaba!",
+]
+
+FOCUS_CHEERS = [
+    "🧘 Diqqat — bu superkuch!",
+    "⏱ Vaqtni boshqargan — hayotni boshqaradi!",
+    "🎯 Deep work = Deep results!",
+    "🧠 Fokus — 21-asr eng qimmat ko'nikmasi!",
+]
+
+FUN_FACTS = [
+    "🧠 Miyangiz kuniga 70,000 ta fikr ishlab chiqaradi!",
+    "💪 Sport qilganda endorfin — tabiiy 'baxt gormoni' ishlab chiqariladi!",
+    "📚 Kuniga 20 daqiqa o'qish — yiliga 26 ta kitob demak!",
+    "🌍 Ingliz tilini biluvchilar 1.5 mlrd dan ortiq odam bilan muloqot qila oladi!",
+    "🧘 Meditatsiya qiluvchilarning stress darajasi 40% kamayadi!",
+    "⏰ Ertalab 5-9 oralig'ida miya eng samarali ishlaydi!",
+    "💧 2 litr suv ichish konsentratsiyani 30% oshiradi!",
+    "🏃 30 daqiqalik yugurish xotirani 20% yaxshilaydi!",
+    "📖 Kitob o'qish Alzheimer kasalligi xavfini 2.5 marta kamaytiradi!",
+    "🔥 21 kun — yangi odat shakllanishi uchun eng kam muddat!",
+    "🧠 Ikki til biladigan odamlarning miyasi 10% kattaroq!",
+    "💪 Har kuni 10 ta push-up qilsangiz, yiliga 3,650 ta bo'ladi!",
+]
+
+TIME_GREETINGS = {
+    "night": ("🌙", "Kech bo'ldi, lekin siz hali o'sib turibsiz!"),
+    "early_morning": ("🌅", "Ertalab turishning o'zi — birinchi g'alaba!"),
+    "morning": ("☀️", "Xayrli tong! Bugun ajoyib kun bo'ladi!"),
+    "afternoon": ("🌤", "Tushlik vaqti! Energiyani to'ldiring va davom eting!"),
+    "evening": ("🌆", "Kechqurun! Bugungi natijalaringizni ko'rib chiqing!"),
+}
+
+
+def get_time_greeting():
+    hour = datetime.now(TZ).hour
+    if hour < 5:
+        return TIME_GREETINGS["night"]
+    elif hour < 7:
+        return TIME_GREETINGS["early_morning"]
+    elif hour < 12:
+        return TIME_GREETINGS["morning"]
+    elif hour < 17:
+        return TIME_GREETINGS["afternoon"]
+    else:
+        return TIME_GREETINGS["evening"]
+
+
+def get_celebration():
+    return random.choice(CELEBRATIONS)
+
+
+def get_fun_fact():
+    return random.choice(FUN_FACTS)
+
+
+def get_workout_cheer():
+    return random.choice(WORKOUT_CHEERS)
+
+
+def get_book_cheer():
+    return random.choice(BOOK_CHEERS)
+
+
+def get_word_cheer():
+    return random.choice(WORD_CHEERS)
+
+
+def get_focus_cheer():
+    return random.choice(FOCUS_CHEERS)
+
+
+# ══════════════════════════════════════════
+#  🏅 YUTUQLAR / ACHIEVEMENTS
+# ══════════════════════════════════════════
+ACHIEVEMENTS = {
+    # Streak yutuqlari
+    "streak_3": {"emoji": "🔥", "title": "Olov boshlanishi", "desc": "3 kunlik streak!", "secret": False},
+    "streak_7": {"emoji": "⚡", "title": "Haftalik chempion", "desc": "7 kunlik streak!", "secret": False},
+    "streak_14": {"emoji": "💎", "title": "Ikki haftalik olmos", "desc": "14 kunlik streak!", "secret": False},
+    "streak_30": {"emoji": "👑", "title": "Oyning qiroli", "desc": "30 kunlik streak!", "secret": False},
+    "streak_100": {"emoji": "🐉", "title": "Ajdaho iroda", "desc": "100 kunlik streak!", "secret": False},
+    # Sport
+    "workout_1": {"emoji": "🏃", "title": "Birinchi qadam", "desc": "Birinchi trenirovka!", "secret": False},
+    "workout_10": {"emoji": "💪", "title": "Sport ishqibozi", "desc": "10 ta trenirovka!", "secret": False},
+    "workout_50": {"emoji": "🦁", "title": "Fitnes sherchasi", "desc": "50 ta trenirovka!", "secret": False},
+    "workout_100": {"emoji": "🏆", "title": "Fitnes legenda", "desc": "100 ta trenirovka!", "secret": False},
+    # Kitob
+    "book_100": {"emoji": "📖", "title": "Kitobxon", "desc": "100 sahifa o'qish!", "secret": False},
+    "book_500": {"emoji": "📚", "title": "Kutubxonachi", "desc": "500 sahifa o'qish!", "secret": False},
+    "book_1000": {"emoji": "🧙", "title": "Bilim sehrgari", "desc": "1000 sahifa o'qish!", "secret": False},
+    # Til
+    "words_50": {"emoji": "🗣", "title": "So'z yig'uvchi", "desc": "50 ta so'z o'rganish!", "secret": False},
+    "words_200": {"emoji": "🌍", "title": "Polyglot", "desc": "200 ta so'z o'rganish!", "secret": False},
+    # Focus
+    "focus_100": {"emoji": "🧘", "title": "Fokuschi", "desc": "100 daqiqa fokus!", "secret": False},
+    "focus_500": {"emoji": "🧠", "title": "Deep Worker", "desc": "500 daqiqa fokus!", "secret": False},
+    # Brain
+    "brain_10": {"emoji": "🧩", "title": "Aqlli bola", "desc": "10 ta brain game!", "secret": False},
+    "brain_50": {"emoji": "🎓", "title": "Professor", "desc": "50 ta brain game!", "secret": False},
+    # Maxfiy yutuqlar
+    "midnight_worker": {"emoji": "🦉", "title": "Tungi boyqush", "desc": "Yarim kechada ish qilish!", "secret": True},
+    "early_bird": {"emoji": "🐦", "title": "Ertalabchi qush", "desc": "6:00 dan oldin ish qilish!", "secret": True},
+    "first_action": {"emoji": "🎬", "title": "Birinchi qadam!", "desc": "Botdan birinchi marta foydalanish!", "secret": True},
+    "all_in_one": {"emoji": "🦸", "title": "Super inson", "desc": "Bir kunda sport + kitob + til + fokus!", "secret": True},
+    "score_100": {"emoji": "💯", "title": "Yuz ball!", "desc": "100 ball to'plash!", "secret": False},
+    "score_500": {"emoji": "🌟", "title": "Yulduz!", "desc": "500 ball to'plash!", "secret": False},
+    "score_1000": {"emoji": "🔮", "title": "Afsonaviy!", "desc": "1000 ball to'plash!", "secret": False},
+}
 
 
 # ══════════════════════════════════════════

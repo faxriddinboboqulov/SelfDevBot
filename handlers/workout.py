@@ -1,8 +1,9 @@
 """💪 Trenirovka handler"""
+import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
-from database import ensure_user, log_workout
-from data import WORKOUTS
+from database import ensure_user, log_workout, add_score, get_workout_count, check_and_unlock_achievements
+from data import WORKOUTS, get_workout_cheer, get_fun_fact, ACHIEVEMENTS
 
 
 async def workout_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -43,9 +44,41 @@ async def workout_level_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def workout_done_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
+    uid = q.from_user.id
     level = q.data.replace("wodone_", "")
-    log_workout(q.from_user.id, f"{level} trenirovka", level)
-    await q.message.reply_text(f"🎉 <b>{level}</b> trenirovka bajarildi! +10 ⭐", parse_mode="HTML")
+    log_workout(uid, f"{level} trenirovka", level)
+    add_score(uid, "workout", 10, f"{level} trenirovka")
+    cheer = get_workout_cheer()
+    week_count = get_workout_count(uid, 7)
+    fact = get_fun_fact()
+
+    level_bonus = {"Beginner": "", "Intermediate": "\n🎖 Daraja bonusi: +2 ⭐", "Hard": "\n🏅 HARD daraja bonusi: +5 ⭐"}
+    bonus_text = level_bonus.get(level, "")
+    if level == "Intermediate":
+        add_score(uid, "workout", 2, "Intermediate bonus")
+    elif level == "Hard":
+        add_score(uid, "workout", 5, "Hard bonus")
+
+    text = (
+        f"🎉🎉🎉\n\n"
+        f"<b>{cheer}</b>\n\n"
+        f"✅ <b>{level}</b> trenirovka bajarildi! +10 ⭐{bonus_text}\n"
+        f"📊 Bu hafta: {week_count} ta trenirovka\n\n"
+        f"💡 {fact}"
+    )
+    await q.message.reply_text(text, parse_mode="HTML")
+
+    # Check achievements
+    new_badges = check_and_unlock_achievements(uid)
+    if new_badges:
+        badge_lines = []
+        for b in new_badges:
+            a = ACHIEVEMENTS.get(b, {})
+            badge_lines.append(f"{a.get('emoji','')} {a.get('title', b)}")
+        await q.message.reply_text(
+            "🏆 <b>YANGI YUTUQ OCHILDI!</b>\n\n" + "\n".join(badge_lines),
+            parse_mode="HTML",
+        )
 
 
 def register(app):

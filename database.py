@@ -203,6 +203,15 @@ def init_db():
         FOREIGN KEY(user_id) REFERENCES users(user_id)
     )""")
 
+    c.execute("""CREATE TABLE IF NOT EXISTS achievements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        badge_id TEXT,
+        unlocked_at TEXT,
+        FOREIGN KEY(user_id) REFERENCES users(user_id),
+        UNIQUE(user_id, badge_id)
+    )""")
+
     conn.commit()
     conn.close()
 
@@ -891,3 +900,99 @@ def get_mini_courses(user_id):
     ).fetchall()
     conn.close()
     return [r["course_name"] for r in rows]
+
+
+# ══════════════════════════════════════════
+#  YUTUQLAR (ACHIEVEMENTS)
+# ══════════════════════════════════════════
+def unlock_achievement(user_id, badge_id):
+    """Yutuqni ochadi. Agar allaqachon ochilgan bo'lsa False qaytaradi."""
+    conn = get_conn()
+    try:
+        conn.execute(
+            "INSERT INTO achievements(user_id, badge_id, unlocked_at) VALUES(?,?,?)",
+            (user_id, badge_id, _now()),
+        )
+        conn.commit()
+        conn.close()
+        return True
+    except Exception:
+        conn.close()
+        return False
+
+
+def get_user_achievements(user_id):
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT badge_id, unlocked_at FROM achievements WHERE user_id=? ORDER BY unlocked_at DESC",
+        (user_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_user_total_actions(user_id):
+    """Foydalanuvchining jami harakatlar soni"""
+    conn = get_conn()
+    totals = {}
+    totals["workouts"] = conn.execute(
+        "SELECT COUNT(*) as c FROM workout_logs WHERE user_id=?", (user_id,)
+    ).fetchone()["c"]
+    totals["books"] = conn.execute(
+        "SELECT COALESCE(SUM(pages),0) as c FROM book_logs WHERE user_id=?", (user_id,)
+    ).fetchone()["c"]
+    totals["words"] = conn.execute(
+        "SELECT COUNT(*) as c FROM word_logs WHERE user_id=?", (user_id,)
+    ).fetchone()["c"]
+    totals["focus"] = conn.execute(
+        "SELECT COALESCE(SUM(minutes),0) as c FROM focus_sessions WHERE user_id=?", (user_id,)
+    ).fetchone()["c"]
+    totals["brain"] = conn.execute(
+        "SELECT COUNT(*) as c FROM brain_scores WHERE user_id=?", (user_id,)
+    ).fetchone()["c"]
+    totals["habits"] = conn.execute(
+        "SELECT COUNT(*) as c FROM habit_logs WHERE user_id=?", (user_id,)
+    ).fetchone()["c"]
+    conn.close()
+    return totals
+
+
+def check_and_unlock_achievements(user_id):
+    """Foydalanuvchining barcha yutuqlarini tekshiradi va yangilarini ochadi"""
+    import pytz
+    from datetime import datetime as _dt
+
+    streak = get_non_zero_streak(user_id)
+    score = get_total_score(user_id)
+    totals = get_user_total_actions(user_id)
+    new_badges = []
+
+    for days in [3, 7, 14, 30, 100]:
+        if streak >= days and unlock_achievement(user_id, f"streak_{days}"):
+            new_badges.append(f"streak_{days}")
+    for pts in [100, 500, 1000]:
+        if score >= pts and unlock_achievement(user_id, f"score_{pts}"):
+            new_badges.append(f"score_{pts}")
+    for n in [1, 10, 50, 100]:
+        if totals["workouts"] >= n and unlock_achievement(user_id, f"workout_{n}"):
+            new_badges.append(f"workout_{n}")
+    for n in [100, 500, 1000]:
+        if totals["books"] >= n and unlock_achievement(user_id, f"book_{n}"):
+            new_badges.append(f"book_{n}")
+    for n in [50, 200]:
+        if totals["words"] >= n and unlock_achievement(user_id, f"words_{n}"):
+            new_badges.append(f"words_{n}")
+    for n in [100, 500]:
+        if totals["focus"] >= n and unlock_achievement(user_id, f"focus_{n}"):
+            new_badges.append(f"focus_{n}")
+    for n in [10, 50]:
+        if totals["brain"] >= n and unlock_achievement(user_id, f"brain_{n}"):
+            new_badges.append(f"brain_{n}")
+
+    hour = _dt.now(pytz.timezone("Asia/Tashkent")).hour
+    if hour < 6 and unlock_achievement(user_id, "early_bird"):
+        new_badges.append("early_bird")
+    if 0 <= hour < 3 and unlock_achievement(user_id, "midnight_worker"):
+        new_badges.append("midnight_worker")
+
+    return new_badges

@@ -2,8 +2,8 @@
 import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
-from database import ensure_user, add_word, get_words_today, get_word_count
-from data import get_daily_words, ENGLISH_WORDS
+from database import ensure_user, add_word, get_words_today, get_word_count, add_score, check_and_unlock_achievements
+from data import get_daily_words, ENGLISH_WORDS, get_word_cheer, ACHIEVEMENTS
 
 
 async def language_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -35,8 +35,23 @@ async def lang_daily_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for w in words:
         lines.append(f"🔹 <b>{w['en']}</b> — {w['uz']}")
         add_word(q.from_user.id, f"{w['en']} - {w['uz']}")
-    lines.append(f"\n✅ {len(words)} ta so'z qo'shildi!")
+    add_score(q.from_user.id, "language", 7, "5 ta so'z")
+    cheer = get_word_cheer()
+    lines.append(f"\n✅ {len(words)} ta so'z qo'shildi! +7 ⭐")
+    lines.append(f"\n{cheer}")
     await q.message.reply_text("\n".join(lines), parse_mode="HTML")
+
+    # Check achievements
+    new_badges = check_and_unlock_achievements(q.from_user.id)
+    if new_badges:
+        badge_lines = []
+        for b in new_badges:
+            a = ACHIEVEMENTS.get(b, {})
+            badge_lines.append(f"{a.get('emoji','')} {a.get('title', b)}")
+        await q.message.reply_text(
+            "🏆 <b>YANGI YUTUQ OCHILDI!</b>\n\n" + "\n".join(badge_lines),
+            parse_mode="HTML",
+        )
 
 
 async def lang_test_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -63,9 +78,10 @@ async def lang_answer_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     selected = q.data.replace("langanswer_", "")
     correct = context.user_data.get("lang_answer", "")
     if selected == correct:
-        await q.message.reply_text("✅ To'g'ri! Ajoyib!")
+        add_score(q.from_user.id, "language", 3, "Test to'g'ri javob")
+        await q.message.reply_text("✅ TO'G'RI! Ajoyib! +3 ⭐\n\n🧠 Miyangiz ishlayapti!")
     else:
-        await q.message.reply_text(f"❌ Noto'g'ri. To'g'ri javob: <b>{correct}</b>", parse_mode="HTML")
+        await q.message.reply_text(f"❌ Noto'g'ri. To'g'ri javob: <b>{correct}</b>\n\n💪 Xato qilish — o'rganish demak!", parse_mode="HTML")
 
 
 async def lang_translate_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -97,5 +97,6 @@ def register(app):
             SETTING_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, rem_set_text)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
+        per_message=False,
     )
     app.add_handler(conv)

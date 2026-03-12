@@ -86,5 +86,6 @@ def register(app):
             ADDING_HABIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, habit_add_name)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
+        per_message=False,
     )
     app.add_handler(conv)

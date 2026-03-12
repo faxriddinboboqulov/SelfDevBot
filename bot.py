@@ -1,8 +1,11 @@
 """
 🚀 Self-Development Super Bot
-27 ta funksiya — bitta botda!
+27+ ta funksiya — bitta botda!
 """
 import logging
+import random
+import threading
+import time as _time
 from datetime import time as dtime
 import pytz
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
@@ -13,8 +16,16 @@ from telegram.ext import (
     ContextTypes,
 )
 from config import BOT_TOKEN, PROXY_URL
-from database import init_db, ensure_user, get_full_stats, get_book_stats, get_daily_tasks, seed_default_daily_tasks
-from data import get_daily_quote
+from database import (
+    init_db, ensure_user, get_full_stats, get_book_stats,
+    get_daily_tasks, seed_default_daily_tasks,
+    get_non_zero_streak, get_total_score, get_user_achievements,
+    unlock_achievement, get_user_total_actions, check_and_unlock_achievements,
+)
+from data import (
+    get_daily_quote, get_time_greeting, get_fun_fact, get_celebration,
+    ACHIEVEMENTS,
+)
 
 from handlers import (
     daily_plan,
@@ -54,97 +65,183 @@ logger = logging.getLogger(__name__)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     ensure_user(user.id, user.username, user.first_name)
+    seed_default_daily_tasks(user.id)
+    unlock_achievement(user.id, "first_action")
+
+    # Dynamic greeting based on time
+    greeting_emoji, greeting_text = get_time_greeting()
+    streak = get_non_zero_streak(user.id)
+    total_score = get_total_score(user.id)
+    from handlers.score_system import get_level
+    level_name, next_thresh = get_level(total_score)
+    badges = get_user_achievements(user.id)
+
+    # Today's tasks progress
+    tasks = get_daily_tasks(user.id)
+    done_tasks = sum(1 for t in tasks if t["is_done"])
+    total_tasks = len(tasks)
+    task_pct = int(done_tasks / total_tasks * 100) if total_tasks > 0 else 0
+
+    # Weekly stats for mini-dashboard
+    s7 = get_full_stats(user.id, days=7)
+
+    # Streak fire visual
+    if streak >= 30:
+        streak_visual = "🔥" * 5 + f" {streak} KUN!"
+    elif streak >= 14:
+        streak_visual = "🔥" * 4 + f" {streak} kun"
+    elif streak >= 7:
+        streak_visual = "🔥" * 3 + f" {streak} kun"
+    elif streak >= 3:
+        streak_visual = "🔥" * 2 + f" {streak} kun"
+    elif streak >= 1:
+        streak_visual = "🔥 " + f"{streak} kun"
+    else:
+        streak_visual = "❄️ 0 — bugun boshlang!"
+
+    # Fun fact
+    fact = get_fun_fact()
+    quote = get_daily_quote()
 
     text = (
-        f"🚀 <b>Xush kelibsiz, {user.first_name}!</b>\n\n"
-        "Bu — <b>Self-Development Super Bot</b> 🧠\n"
-        "Har kuni o'zingizni rivojlantiring!\n\n"
-        "📱 <b>Asosiy funksiyalar:</b>\n\n"
-        "📋 /plan — Kunlik reja\n"
-        "🔥 /habits — Odatlar tracker\n"
-        "💪 /workout — Trenirovka\n"
-        "🌍 /language — Til o'rganish\n"
-        "📚 /book — Kitob o'qish\n"
-        "🎥 /videos — Foydali videolar\n"
-        "🎯 /goals — Maqsadlar & Challengelar\n"
-        "🎯 /focus — Focus timer (Pomodoro)\n"
-        "🧠 /brain — Brain training\n"
-        "📂 /vault — Knowledge vault\n"
-        "⏰ /reminders — Eslatmalar\n"
-        "💡 /motivation — Motivatsion fikr\n\n"
-        "🆕 <b>Qo'shimcha funksiyalar:</b>\n\n"
-        "😊 /mood — Kayfiyat tracker\n"
-        "🛡 /antiprocrastination — Anti-prokrastinatsiya\n"
-        "🌙 /evening — Kechki tahlil\n"
-        "☀️ /morning — Ertalabki start\n"
-        "📅 /nozero — No Zero Day\n"
-        "⭐ /score — Ball tizimi\n"
-        "⚡ /quicklog — Tez yozuv\n"
-        "📊 /weekly — Haftalik hisobot\n"
-        "💡 /recommend — Shaxsiy tavsiyalar\n"
-        "📘 /course — Mini kurslar\n"
-        "🚨 /emergency — Favqulodda reset\n\n"
-        "📊 /stats — 30 kunlik | /stats90 — 90 kunlik\n"
-        "🤖 /advice — AI maslahat\n\n"
-        "Yoki quyidagi tugmalardan foydalaning 👇"
+        f"{greeting_emoji} <b>{greeting_text}</b>\n\n"
+        f"👋 Salom, <b>{user.first_name}</b>!\n\n"
+        "━━━━━━━━━━━━━━━━━\n"
+        f"🏅 {level_name} | ⭐ {total_score} ball\n"
+        f"🔥 Streak: {streak_visual}\n"
+        f"🏆 Yutuqlar: {len(badges)} ta\n"
+        "━━━━━━━━━━━━━━━━━\n\n"
+        f"📋 Bugungi reja: {done_tasks}/{total_tasks} ({task_pct}%)\n"
+        f"  💪 Sport: {s7['workouts']} | 📚 Kitob: {s7['pages']}p\n"
+        f"  🌍 So'z: {s7['words']} | 🎯 Fokus: {s7['focus_min']}m\n\n"
+        f"💡 {quote}\n\n"
+        f"🧠 {fact}\n\n"
+        "👇 <b>Quyidagilardan tanlang:</b>"
     )
 
     keyboard = [
+        # --- Quick actions row ---
+        [
+            InlineKeyboardButton("⚡ TEZ YOZUV", callback_data="menu_quicklog"),
+            InlineKeyboardButton("🚨 EMERGENCY", callback_data="menu_emergency"),
+        ],
+        # --- Category: TANA ---
+        [InlineKeyboardButton("━━ 💪 TANA ━━", callback_data="noop")],
+        [
+            InlineKeyboardButton("💪 Trenirovka", callback_data="menu_workout"),
+            InlineKeyboardButton("😊 Kayfiyat", callback_data="menu_mood"),
+        ],
+        # --- Category: AQL ---
+        [InlineKeyboardButton("━━ 🧠 AQL ━━", callback_data="noop")],
+        [
+            InlineKeyboardButton("📚 Kitob", callback_data="menu_book"),
+            InlineKeyboardButton("🌍 Til", callback_data="menu_language"),
+        ],
+        [
+            InlineKeyboardButton("🧠 Brain Game", callback_data="menu_brain"),
+            InlineKeyboardButton("📘 Kurslar", callback_data="menu_course"),
+        ],
+        # --- Category: REJALASHTIRISH ---
+        [InlineKeyboardButton("━━ 📋 REJA ━━", callback_data="noop")],
         [
             InlineKeyboardButton("📋 Kunlik reja", callback_data="menu_plan"),
             InlineKeyboardButton("🔥 Odatlar", callback_data="menu_habits"),
         ],
         [
-            InlineKeyboardButton("💪 Trenirovka", callback_data="menu_workout"),
-            InlineKeyboardButton("🌍 Til o'rganish", callback_data="menu_language"),
-        ],
-        [
-            InlineKeyboardButton("📚 Kitob o'qish", callback_data="menu_book"),
-            InlineKeyboardButton("🎥 Videolar", callback_data="menu_videos"),
-        ],
-        [
             InlineKeyboardButton("🎯 Maqsadlar", callback_data="menu_goals"),
-            InlineKeyboardButton("🎯 Focus Timer", callback_data="menu_focus"),
+            InlineKeyboardButton("🎯 Fokus Timer", callback_data="menu_focus"),
+        ],
+        # --- Category: TAHLIL ---
+        [InlineKeyboardButton("━━ 📊 TAHLIL ━━", callback_data="noop")],
+        [
+            InlineKeyboardButton("📊 Statistika", callback_data="menu_stats"),
+            InlineKeyboardButton("📊 Haftalik", callback_data="menu_weekly"),
         ],
         [
-            InlineKeyboardButton("🧠 Brain Training", callback_data="menu_brain"),
-            InlineKeyboardButton("📊 Progress", callback_data="menu_stats"),
+            InlineKeyboardButton("⭐ Ball & Daraja", callback_data="menu_score"),
+            InlineKeyboardButton("🏆 Yutuqlar", callback_data="show_achievements"),
+        ],
+        # --- Category: QOLLAB-QUVVATLASH ---
+        [InlineKeyboardButton("━━ 💡 YORDAM ━━", callback_data="noop")],
+        [
+            InlineKeyboardButton("💡 Motivatsiya", callback_data="menu_motivation"),
+            InlineKeyboardButton("💡 Tavsiyalar", callback_data="menu_recommend"),
+        ],
+        [
+            InlineKeyboardButton("🛡 Anti-prokr.", callback_data="menu_antiprocrastination"),
+            InlineKeyboardButton("🤖 AI Maslahat", callback_data="menu_advice"),
+        ],
+        # --- Category: BOSHQA ---
+        [InlineKeyboardButton("━━ 📂 BOSHQA ━━", callback_data="noop")],
+        [
+            InlineKeyboardButton("🌙 Kechki tahlil", callback_data="ev_start"),
+            InlineKeyboardButton("☀️ Ertalabki start", callback_data="menu_morning"),
+        ],
+        [
+            InlineKeyboardButton("📅 No Zero Day", callback_data="menu_nozero"),
+            InlineKeyboardButton("🎥 Videolar", callback_data="menu_videos"),
         ],
         [
             InlineKeyboardButton("📂 Vault", callback_data="menu_vault"),
             InlineKeyboardButton("⏰ Eslatmalar", callback_data="menu_reminders"),
         ],
-        [
-            InlineKeyboardButton("💡 Motivatsiya", callback_data="menu_motivation"),
-            InlineKeyboardButton("🤖 AI Maslahat", callback_data="menu_advice"),
-        ],
-        [
-            InlineKeyboardButton("😊 Kayfiyat", callback_data="menu_mood"),
-            InlineKeyboardButton("🛡 Anti-prokr.", callback_data="menu_antiprocrastination"),
-        ],
-        [
-            InlineKeyboardButton("🌙 Kechki tahlil", callback_data="menu_evening"),
-            InlineKeyboardButton("☀️ Ertalab", callback_data="menu_morning"),
-        ],
-        [
-            InlineKeyboardButton("📅 No Zero Day", callback_data="menu_nozero"),
-            InlineKeyboardButton("⭐ Ball", callback_data="menu_score"),
-        ],
-        [
-            InlineKeyboardButton("⚡ Tez yozuv", callback_data="menu_quicklog"),
-            InlineKeyboardButton("📊 Haftalik", callback_data="menu_weekly"),
-        ],
-        [
-            InlineKeyboardButton("💡 Tavsiyalar", callback_data="menu_recommend"),
-            InlineKeyboardButton("📘 Kurslar", callback_data="menu_course"),
-        ],
-        [
-            InlineKeyboardButton("🚨 Emergency Reset", callback_data="menu_emergency"),
-        ],
     ]
     await update.message.reply_text(
         text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard)
     )
+
+
+# ========== Noop callback (category headers) ==========
+async def noop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.callback_query.answer("📌 Bu sarlavha tugmasi", show_alert=False)
+
+
+# ========== 🏆 Achievements ==========
+async def show_achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    uid = q.from_user.id
+    ensure_user(uid, q.from_user.username, q.from_user.first_name)
+
+    # Check for new achievements
+    check_and_unlock_achievements(uid)
+
+    badges = get_user_achievements(uid)
+    unlocked_ids = {b["badge_id"] for b in badges}
+
+    lines = ["🏆 <b>YUTUQLAR PANELI</b>\n"]
+
+    # Unlocked
+    if badges:
+        lines.append(f"✅ <b>Ochilgan: {len(badges)} ta</b>\n")
+        for b in badges:
+            info = ACHIEVEMENTS.get(b["badge_id"], {})
+            lines.append(f"  {info.get('emoji', '🏅')} <b>{info.get('title', '???')}</b>")
+            lines.append(f"      <i>{info.get('desc', '')}</i>")
+    else:
+        lines.append("😐 Hali yutuq yo'q. Harakatlaringiz bilan oching!\n")
+
+    # Locked (visible ones only)
+    locked = [
+        (k, v) for k, v in ACHIEVEMENTS.items()
+        if k not in unlocked_ids and not v.get("secret", False)
+    ]
+    if locked:
+        lines.append(f"\n🔒 <b>Qolgan: {len(locked)} ta</b>\n")
+        for k, v in locked[:8]:
+            lines.append(f"  🔒 <b>{v['title']}</b> — <i>{v['desc']}</i>")
+        if len(locked) > 8:
+            lines.append(f"  ... va yana {len(locked) - 8} ta")
+
+    # Secret hint
+    secret_locked = [
+        k for k, v in ACHIEVEMENTS.items()
+        if k not in unlocked_ids and v.get("secret", False)
+    ]
+    if secret_locked:
+        lines.append(f"\n🔮 <b>{len(secret_locked)} ta maxfiy yutuq</b> mavjud!")
+
+    await q.message.reply_text("\n".join(lines), parse_mode="HTML")
 
 
 # ========== Menu callbacks ==========
@@ -170,7 +267,6 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "advice": ai_advice,
         "mood": mood_tracker.mood_cmd,
         "antiprocrastination": anti_procrastination.antiprocrastination_cmd,
-        "evening": evening_review.evening_cmd,
         "morning": morning_startup.morning_cmd,
         "nozero": nozero.nozero_cmd,
         "score": score_system.score_cmd,
@@ -303,6 +399,11 @@ async def post_init(app: Application):
 
 # ========== MAIN ==========
 def main():
+    if not BOT_TOKEN:
+        print("❌ BOT_TOKEN topilmadi!")
+        print("config.py faylida BOT_TOKEN ni yozing yoki BOT_TOKEN environment variable qo'ying.")
+        return
+
     init_db()
 
     builder = Application.builder().token(BOT_TOKEN).post_init(post_init)
@@ -318,6 +419,10 @@ def main():
     app.add_handler(CommandHandler("help", help_cmd))
     app.add_handler(CommandHandler("advice", ai_advice))
 
+    # Noop callback for category headers
+    app.add_handler(CallbackQueryHandler(noop_callback, pattern=r"^noop$"))
+    # Achievements
+    app.add_handler(CallbackQueryHandler(show_achievements, pattern=r"^show_achievements$"))
     # Menu callback
     app.add_handler(CallbackQueryHandler(menu_callback, pattern=r"^menu_"))
 
@@ -388,12 +493,29 @@ def main():
 
     from config import MODE, PORT, RENDER_URL
     if MODE == "webhook" and RENDER_URL:
-        webhook_url = f"{RENDER_URL}/webhook"
-        logger.info(f"Webhook rejim: {webhook_url}")
+        # Keep-alive: Render free tier 15 daqiqadan keyin o'chadi
+        # Har 10 daqiqada o'ziga ping yuboradi
+        def keep_alive():
+            import urllib.request
+            while True:
+                _time.sleep(600)  # 10 daqiqa
+                try:
+                    urllib.request.urlopen(RENDER_URL)
+                except Exception:
+                    pass
+
+        t = threading.Thread(target=keep_alive, daemon=True)
+        t.start()
+        logger.info("Keep-alive thread ishga tushdi (har 10 daqiqa)")
+
+        # Render.com uchun webhook rejimda ishga tushirish
+        secret_path = BOT_TOKEN.split(":")[1]
+        webhook_url = f"{RENDER_URL}/{secret_path}"
+        logger.info(f"Webhook rejim: {RENDER_URL}/***")
         app.run_webhook(
             listen="0.0.0.0",
             port=PORT,
-            url_path="/webhook",
+            url_path=f"/{secret_path}",
             webhook_url=webhook_url,
             allowed_updates=Update.ALL_TYPES,
         )
